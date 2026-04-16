@@ -99,50 +99,58 @@ export function calcTeamHoleH2H(h){
   const m=Array(players.length).fill(0);
   const r=G.team.val, cr=G.team.chuanVal*r;
   const dm=G.doubleRe.on?(G.doubleRe.mults[h]||1):1;
-  const teamA=[],teamB=[],soloA=[],soloB=[];
+  const teamA=[],teamB=[],teamC=[],soloPlayers=[];
   players.forEach((_,p)=>{
     if(scores[p][h]===null||skipData[h]?.[p]?.has('team'))return;
     const t=getTeamForHole(h,p);
     const isSolo=teamSoloPlayers.has(p);
-    if(isSolo){ if(t==='A')soloA.push(p);else soloB.push(p); }
-    else { if(t==='A')teamA.push(p);else teamB.push(p); }
+    if(isSolo){ soloPlayers.push({p,t}); }
+    else { if(t==='A')teamA.push(p); else if(t==='B')teamB.push(p); else if(t==='C')teamC.push(p); }
   });
-  teamA.sort((a,b)=>scores[a][h]-scores[b][h]);
-  teamB.sort((a,b)=>scores[a][h]-scores[b][h]);
-  const matchLen=Math.min(teamA.length,teamB.length);
-  let wA=0,wB=0;
-  for(let i=0;i<matchLen;i++){
-    const sa=scores[teamA[i]][h], sb=scores[teamB[i]][h];
-    if(sa<sb) wA++;else if(sb<sa) wB++;
-  }
-  const chuanA = wA===0 && wB>0 && matchLen>=2;
-  const chuanB = wB===0 && wA>0 && matchLen>=2;
-  for(let i=0;i<matchLen;i++){
-    const a=teamA[i], b=teamB[i];
-    const sa=scores[a][h], sb=scores[b][h];
-    if(sa===null||sb===null)continue;
-    if(sa<sb){const amt=(chuanB?cr:r)*dm;m[a]+=amt;m[b]-=amt;}
-    else if(sb<sa){const amt=(chuanA?cr:r)*dm;m[b]+=amt;m[a]-=amt;}
-  }
-  const resolveSolo=(sp, opps)=>{
-    let soloW=0, soloL=0;
+  // Round-robin: A vs B, A vs C, B vs C
+  const resolveMatchup=(tX,tY)=>{
+    const X=[...tX].sort((a,b)=>scores[a][h]-scores[b][h]);
+    const Y=[...tY].sort((a,b)=>scores[a][h]-scores[b][h]);
+    const len=Math.min(X.length,Y.length);
+    if(len===0)return;
+    let wX=0,wY=0;
+    for(let i=0;i<len;i++){
+      const sx=scores[X[i]][h],sy=scores[Y[i]][h];
+      if(sx<sy)wX++;else if(sy<sx)wY++;
+    }
+    const chuanX=wX===0&&wY>0&&len>=2;
+    const chuanY=wY===0&&wX>0&&len>=2;
+    for(let i=0;i<len;i++){
+      const x=X[i],y=Y[i];
+      const sx=scores[x][h],sy=scores[y][h];
+      if(sx===null||sy===null)continue;
+      if(sx<sy){const amt=(chuanY?cr:r)*dm;m[x]+=amt;m[y]-=amt;}
+      else if(sy<sx){const amt=(chuanX?cr:r)*dm;m[y]+=amt;m[x]-=amt;}
+    }
+  };
+  resolveMatchup(teamA,teamB);
+  resolveMatchup(teamA,teamC);
+  resolveMatchup(teamB,teamC);
+  // Solo สู้ทุกทีมที่ไม่ใช่ทีมตัวเอง
+  const resolveSolo=(sp,t)=>{
+    const opps=[...(t!=='A'?teamA:[]),...(t!=='B'?teamB:[]),...(t!=='C'?teamC:[])];
+    let soloW=0,soloL=0;
     const results=[];
     opps.forEach(op=>{
-      const ss=scores[sp][h], os=scores[op][h];
+      const ss=scores[sp][h],os=scores[op][h];
       if(ss===null||os===null)return;
-      if(ss<os){ soloW++; results.push({op,win:true}); }
-      else if(os<ss){ soloL++; results.push({op,win:false}); }
-      else { results.push({op,win:null}); }
+      if(ss<os){soloW++;results.push({op,win:true});}
+      else if(os<ss){soloL++;results.push({op,win:false});}
+      else{results.push({op,win:null});}
     });
-    const soloChuan = soloL===opps.length && soloW===0 && opps.length>=2;
+    const soloChuan=soloL===opps.length&&soloW===0&&opps.length>=2;
     results.forEach(({op,win})=>{
       if(win===null)return;
       const amt=(soloChuan?cr:r)*dm;
       if(win){m[sp]+=amt;m[op]-=amt;}else{m[op]+=amt;m[sp]-=amt;}
     });
   };
-  soloA.forEach(sp=>resolveSolo(sp,teamB));
-  soloB.forEach(sp=>resolveSolo(sp,teamA));
+  soloPlayers.forEach(({p,t})=>resolveSolo(p,t));
   return m;
 }
 export function calcFarNearHole(h){

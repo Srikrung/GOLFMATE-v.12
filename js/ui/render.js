@@ -58,10 +58,10 @@ export function getTeamBadgeProps(h,p){
   const isOut=skipData[h]?.[p]?.has('team');
   if(isOut)return{bg:'rgba(255,255,255,0.06)',cl:'var(--lbl3)',label:'ไม่เล่น'};
   const isSolo=teamSoloPlayers.has(p);
-  if(isSolo)return{bg:'rgba(52,199,89,0.18)',cl:'var(--green)',label:'⚡Solo'};
+  if(isSolo)return{bg:'rgba(255,159,10,0.2)',cl:'var(--orange)',label:'⚡Solo'};
   const t=getTeamForHole(h,p);
-  const bg=t==='A'?'rgba(77,163,255,0.2)':t==='B'?'rgba(255,92,82,0.2)':'rgba(255,159,10,0.2)';
-  const cl=t==='A'?'var(--blue)':t==='B'?'var(--red)':'var(--orange,#ff9f0a)';
+  const bg=t==='A'?'rgba(10,132,255,0.2)':t==='B'?'rgba(255,69,58,0.18)':t==='C'?'rgba(48,209,88,0.18)':'rgba(10,132,255,0.2)';
+  const cl=t==='A'?'var(--blue)':t==='B'?'var(--red)':t==='C'?'var(--green)':'var(--blue)';
   return{bg,cl,label:'ทีม '+t};
 }
 export function getTeamBadgeHTML(h,p){

@@ -47,3 +47,14 @@ body{
 /* ── saving overlay ── */
 #saving-ov{display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.55);align-items:center;justify-content:center;flex-direction:column;gap:12px;}
 #saving-ov.show{display:flex;}
+
+
+/* V12.1 — Fix select dark mode */
+select {
+  background: var(--bg2);
+  color: var(--lbl);
+}
+select option {
+  background: var(--bg2);
+  color: var(--lbl);
+}

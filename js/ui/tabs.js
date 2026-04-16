@@ -146,6 +146,8 @@ export async function loadCoursesDropdown(){
     // เพิ่มสนาม
     opts += `<option value="__add__">➕ เพิ่มสนามใหม่...</option>`;
     sel.innerHTML = opts;
+    // V12.1: ตั้ง default เป็น มทบ.13
+    if(_allCourses['mthb']) sel.value = 'mthb';
 
   }catch(e){
     // fallback ถ้า Firebase ไม่ได้
