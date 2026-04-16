@@ -114,12 +114,7 @@
     <div class="row">
       <div class="r-text">
         <select id="course-preset" onchange="changeCoursePreset()" style="width:100%;background:transparent;border:none;padding:0;font-size:15px;color:var(--lbl);outline:none;-webkit-appearance:none">
-          <option value="custom">-- พิมพ์ชื่อสนามเอง --</option>
-          <option value="muangek">สนามเมืองเอก</option>
-          <option value="vista">สนามวิสต้า</option>
-          <option value="mthb13" selected>มลฑลทหารบกที่ 13</option>
-          <option value="panya">ปัญญาอินทรา</option>
-          <option value="narai">นารายณ์ ฮิลล์</option>
+          <option value="custom">⟳ กำลังโหลดสนาม...</option>
         </select>
       </div>
     </div>
@@ -141,12 +136,24 @@
     </div>
   </div>
 
+  <!-- V12.1: Banner เตือน Par ว่าง -->
+  <div id="par-warning" style="display:none;background:rgba(255,159,10,0.12);border:1.5px solid rgba(255,159,10,0.4);border-radius:12px;padding:12px 14px;margin-bottom:8px">
+    <div style="font-size:13px;font-weight:700;color:var(--orange);margin-bottom:4px">⚠️ Par ของสนาม "<span id="par-warn-name"></span>" ยังไม่มีข้อมูล</div>
+    <div style="font-size:12px;color:var(--lbl2)">กรุณาตรวจสอบ Par รายหลุมด้านล่าง แล้วกด "บันทึกและแชร์" เพื่อช่วยผู้เล่นคนอื่นด้วยครับ</div>
+  </div>
+
   <div class="sec-h">Par</div>
   <div class="group" style="padding:12px 14px">
     <div style="font-size:11px;color:var(--lbl2);margin-bottom:6px">Front 9</div>
     <div class="par-grid" id="par-front"></div>
     <div style="font-size:11px;color:var(--lbl2);margin:10px 0 6px">Back 9</div>
     <div class="par-grid" id="par-back"></div>
+    <button id="par-share-btn" onclick="shareCourseParToFirebase()"
+      style="display:none;width:100%;margin-top:10px;padding:10px;border-radius:10px;border:none;
+      background:rgba(48,209,88,0.15);color:var(--green);font-family:inherit;font-size:13px;
+      font-weight:700;cursor:pointer;border:1.5px solid rgba(48,209,88,0.3)">
+      💾 บันทึกและแชร์ Par ให้ทุกคน
+    </button>
   </div>
 
   <div onclick="(function(s){var b=document.getElementById('gb-games-sec');b.style.display=b.style.display==='none'?'block':'none';s.querySelector('.arr').style.transform=b.style.display==='block'?'rotate(0)':'rotate(-90deg)';})(this)"
@@ -232,7 +239,7 @@
       <div class="sw" id="sw-team" onclick="toggleSw('team')"></div>
     </div>
     <div id="gb-team" style="display:none;padding:8px 14px 12px;border-bottom:0.5px solid var(--sep)">
-      <div style="font-size:11px;color:var(--lbl2);margin-bottom:8px">แบ่งครึ่ง → ทีม A / B · คนเกินเลือก Solo (สู้ทุกคนฝั่งตรงข้าม) หรือ ไม่เล่น</div>
+      <div style="font-size:11px;color:var(--lbl2);margin-bottom:8px">แบ่งทีม A / B / C · Solo (สู้ทุกฝั่งตรงข้าม) หรือ ไม่เล่น · กดที่แถวผู้เล่นบนสกอร์การ์ดเพื่อแบ่งทีม</div>
       <!-- ราคา -->
       <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
         <div style="display:flex;align-items:center;gap:8px"><span style="font-size:13px;color:var(--lbl2)">1 พอยต์ =</span><input type="number" id="gv-team" value="20" min="1" style="width:68px;border-radius:8px;padding:7px;text-align:center;font-size:15px"><span style="font-size:13px;color:var(--lbl2)">บาท</span></div>
@@ -510,7 +517,7 @@
     <!-- HEADER -->
     <div style="text-align:center;padding:10px 0 24px">
       <div style="font-size:13px;font-weight:600;color:var(--blue);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">คู่มือการใช้งาน</div>
-      <div style="font-size:26px;font-weight:800;color:var(--lbl);letter-spacing:-0.5px">GolfMate v11</div>
+      <div style="font-size:26px;font-weight:800;color:var(--lbl);letter-spacing:-0.5px">GolfMate v12</div>
       <div style="font-size:13px;color:var(--lbl2);margin-top:4px">ฉบับสมบูรณ์ · อัปเดตล่าสุด</div>
     </div>
 
@@ -561,6 +568,44 @@
         <div><span style="font-weight:700">Turbo 🔥</span> — กดบนหน้าสกอร์เพื่อตั้งหลุม Turbo</div>
         <div><span style="font-weight:700">ทีม A/B · เบิ้ล · รี</span> — กดที่แถวผู้เล่นเพื่อเปลี่ยน</div>
         <div><span style="font-weight:700">DQ · Chip</span> — บันทึกพิเศษสำหรับโอลิมปิก</div>
+      </div>
+    </div>
+
+    <!-- V12 NEW: Tab Bar + หน้าผล -->
+    <div style="background:linear-gradient(135deg,rgba(10,132,255,0.1),rgba(10,132,255,0.05));border-radius:14px;padding:16px;margin-bottom:10px;border:1px solid rgba(10,132,255,0.25)">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <div style="font-size:15px;font-weight:700;color:var(--blue)">✨ ใหม่ใน V12 — Tab Bar 4 ปุ่ม</div>
+        <div style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;background:rgba(10,132,255,0.2);color:var(--blue)">NEW</div>
+      </div>
+      <div style="display:flex;gap:6px;margin-bottom:14px">
+        <div style="flex:1;text-align:center;padding:8px 4px;background:var(--bg3);border-radius:10px">
+          <div style="font-size:18px">⚙️</div><div style="font-size:11px;color:var(--lbl2);margin-top:2px">ตั้งค่า</div>
+        </div>
+        <div style="flex:1;text-align:center;padding:8px 4px;background:var(--bg3);border-radius:10px">
+          <div style="font-size:18px">✏️</div><div style="font-size:11px;color:var(--lbl2);margin-top:2px">สกอร์</div>
+        </div>
+        <div style="flex:1;text-align:center;padding:8px 4px;background:rgba(10,132,255,0.15);border-radius:10px;border:1px solid rgba(10,132,255,0.3)">
+          <div style="font-size:18px">🏆</div><div style="font-size:11px;color:var(--blue);font-weight:700;margin-top:2px">ผล</div>
+        </div>
+        <div style="flex:1;text-align:center;padding:8px 4px;background:var(--bg3);border-radius:10px">
+          <div style="font-size:18px">💰</div><div style="font-size:11px;color:var(--lbl2);margin-top:2px">เงิน</div>
+        </div>
+      </div>
+      <div style="font-size:13px;color:var(--lbl2);line-height:1.7;margin-bottom:12px">
+        Tab <span style="color:var(--blue);font-weight:700">📡 อันดับ</span> ถูกรวมเข้าหน้า 🏆 <span style="font-weight:700">ผล</span> แล้ว — กดดูได้จาก sub-tab ด้านใน
+      </div>
+      <div style="background:var(--bg3);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px">
+        <div style="font-size:12px;font-weight:700;color:var(--lbl2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px">หน้า 🏆 ผล มี 2 sub-tab</div>
+        <div style="display:flex;gap:6px">
+          <div style="flex:1;padding:8px;background:rgba(10,132,255,0.12);border-radius:8px;border:1px solid rgba(10,132,255,0.25)">
+            <div style="font-size:12px;font-weight:700;color:var(--blue)">📊 สกอร์การ์ด</div>
+            <div style="font-size:11px;color:var(--lbl2);margin-top:3px;line-height:1.5">ตารางสกอร์รายหลุม · สถิติ · Export Sheets · Share LINE</div>
+          </div>
+          <div style="flex:1;padding:8px;background:rgba(48,209,88,0.08);border-radius:8px;border:1px solid rgba(48,209,88,0.2)">
+            <div style="font-size:12px;font-weight:700;color:var(--green)">📡 อันดับ Live</div>
+            <div style="font-size:11px;color:var(--lbl2);margin-top:3px;line-height:1.5">Firebase Live · ทุก Room · Date nav · Ticker</div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -664,7 +709,7 @@
         <div style="width:32px;height:32px;border-radius:9px;background:rgba(48,209,88,0.12);display:flex;align-items:center;justify-content:center;font-size:18px">🤝</div>
         <div style="font-size:15px;font-weight:700;color:var(--lbl)">ทีม</div>
       </div>
-      <div style="font-size:14px;color:var(--lbl);line-height:1.7">แข่งระหว่างทีม A vs B · นับ Best 2 ช็อตมาเทียบ · แพ้ทั้ง 2 ช็อต = ช้วน (จ่ายเพิ่ม)</div>
+      <div style="font-size:14px;color:var(--lbl);line-height:1.7">แข่งระหว่างทีม A / B / C · Round-robin ทุกคู่ทีม · นับ Best 2 ช็อตมาเทียบ · แพ้ทั้ง 2 ช็อต = ช้วน (จ่ายเพิ่ม)</div>
     </div>
 
     <!-- Far-Near -->
@@ -698,6 +743,7 @@
         <div>• ข้อมูลสำรองอัตโนมัติทุก 10 วิ (ต้องเปิด Sync + มี Room Code)</div>
         <div>• ล้างแอป 04:00–05:59 อัตโนมัติ เพื่อเริ่มเกมใหม่ทุกวัน</div>
         <div>• กู้คืนเกม → หน้าตั้งค่า → ☁️ สำรองข้อมูล → กู้คืนเกม</div>
+        <div style="color:var(--blue)">• <span style="font-weight:700">V12 ใหม่:</span> ดู อันดับ Live ได้จากหน้า 🏆 ผล → กด [📡 อันดับ Live]</div>
       </div>
     </div>
 
@@ -919,6 +965,84 @@
     <button class="cta-line" onclick="shareToLine('money-cap')">แชร์ยอดเงิน</button>
     <button class="nav-b" onclick="goTab('scorecard')">← กลับ</button>
     <button class="cta-danger" onclick="newGame()">+ เริ่มเกมก๊วนใหม่</button>
+  </div>
+</div>
+
+<!-- V12.1: ADD COURSE MODAL -->
+<div id="add-course-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:200;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px)">
+  <div id="add-course-sheet" style="background:var(--bg2);border-radius:20px 20px 0 0;padding:20px 20px 36px;width:100%;max-width:480px;transform:translateY(100%);transition:transform .3s;max-height:90vh;overflow-y:auto">
+    <div style="width:36px;height:4px;background:var(--bg4);border-radius:2px;margin:0 auto 16px"></div>
+    <div style="font-size:18px;font-weight:700;color:var(--lbl);margin-bottom:4px">➕ เพิ่มสนามใหม่</div>
+    <div style="font-size:12px;color:var(--lbl2);margin-bottom:16px">ช่วยเพิ่มข้อมูลสนามให้นักกอล์ฟทั่วประเทศใช้ร่วมกัน</div>
+
+    <div style="margin-bottom:12px">
+      <div style="font-size:12px;color:var(--lbl2);margin-bottom:4px">ชื่อสนาม *</div>
+      <input type="text" id="ac-name" placeholder="เช่น สนามเมืองเอก"
+        style="width:100%;border-radius:10px;padding:10px 12px;font-size:15px">
+    </div>
+
+    <div style="margin-bottom:12px">
+      <div style="font-size:12px;color:var(--lbl2);margin-bottom:4px">ประเภทสนาม *</div>
+      <select id="ac-type" onchange="toggleCourseTypeUI(this.value)"
+        style="width:100%;border-radius:10px;padding:10px 12px;font-size:14px">
+        <option value="18hole">18 หลุม (ปกติ)</option>
+        <option value="9hole-loop">9 หลุม หลายคอส (Loop)</option>
+      </select>
+    </div>
+
+    <!-- 18 hole par grid -->
+    <div id="ac-18hole-wrap">
+      <div style="font-size:12px;color:var(--lbl2);margin-bottom:6px">Par รายหลุม (H1–H18)</div>
+      <div style="display:grid;grid-template-columns:repeat(9,1fr);gap:4px;margin-bottom:4px">
+        <div style="font-size:10px;color:var(--lbl3);text-align:center">H1</div><div style="font-size:10px;color:var(--lbl3);text-align:center">H2</div><div style="font-size:10px;color:var(--lbl3);text-align:center">H3</div><div style="font-size:10px;color:var(--lbl3);text-align:center">H4</div><div style="font-size:10px;color:var(--lbl3);text-align:center">H5</div><div style="font-size:10px;color:var(--lbl3);text-align:center">H6</div><div style="font-size:10px;color:var(--lbl3);text-align:center">H7</div><div style="font-size:10px;color:var(--lbl3);text-align:center">H8</div><div style="font-size:10px;color:var(--lbl3);text-align:center">H9</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(9,1fr);gap:4px;margin-bottom:8px" id="ac-front-grid">
+        <!-- JS fills these -->
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(9,1fr);gap:4px;margin-bottom:4px">
+        <div style="font-size:10px;color:var(--lbl3);text-align:center">H10</div><div style="font-size:10px;color:var(--lbl3);text-align:center">H11</div><div style="font-size:10px;color:var(--lbl3);text-align:center">H12</div><div style="font-size:10px;color:var(--lbl3);text-align:center">H13</div><div style="font-size:10px;color:var(--lbl3);text-align:center">H14</div><div style="font-size:10px;color:var(--lbl3);text-align:center">H15</div><div style="font-size:10px;color:var(--lbl3);text-align:center">H16</div><div style="font-size:10px;color:var(--lbl3);text-align:center">H17</div><div style="font-size:10px;color:var(--lbl3);text-align:center">H18</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(9,1fr);gap:4px" id="ac-back-grid"></div>
+    </div>
+
+    <!-- 9 hole loop -->
+    <div id="ac-9hole-wrap" style="display:none">
+      <div style="margin-bottom:10px">
+        <div style="font-size:12px;color:var(--lbl2);margin-bottom:4px">ชื่อคอส (เช่น A, B, Lake)</div>
+        <input type="text" id="ac-loop-name" placeholder="A"
+          style="width:100%;border-radius:10px;padding:10px 12px;font-size:15px">
+      </div>
+      <div style="font-size:12px;color:var(--lbl2);margin-bottom:6px">Par รายหลุม (H1–H9)</div>
+      <div style="display:grid;grid-template-columns:repeat(9,1fr);gap:4px" id="ac-9hole-grid"></div>
+    </div>
+
+    <div id="ac-status" style="display:none;padding:10px 12px;border-radius:10px;font-size:13px;font-weight:600;margin-top:12px;color:#fff"></div>
+
+    <button class="cta" onclick="confirmAddCourse()" style="margin-top:12px">✅ เพิ่มสนามนี้</button>
+    <button class="nav-b" onclick="hideAddCourseModal()" style="width:100%;margin-top:8px">ยกเลิก</button>
+  </div>
+</div>
+
+<!-- V12.1: ADD LOOP MODAL -->
+<div id="add-loop-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:200;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px)">
+  <div id="add-loop-sheet" style="background:var(--bg2);border-radius:20px 20px 0 0;padding:20px 20px 36px;width:100%;max-width:480px;transform:translateY(100%);transition:transform .3s">
+    <div style="width:36px;height:4px;background:var(--bg4);border-radius:2px;margin:0 auto 16px"></div>
+    <div style="font-size:18px;font-weight:700;color:var(--lbl);margin-bottom:2px">➕ เพิ่มคอสใหม่</div>
+    <div id="al-course-name" style="font-size:13px;color:var(--blue);margin-bottom:16px;font-weight:600"></div>
+
+    <div style="margin-bottom:12px">
+      <div style="font-size:12px;color:var(--lbl2);margin-bottom:4px">ชื่อคอส (เช่น C, Lake, Mountain)</div>
+      <input type="text" id="al-loop-name" placeholder="C"
+        style="width:100%;border-radius:10px;padding:10px 12px;font-size:15px;text-transform:uppercase">
+    </div>
+
+    <div style="font-size:12px;color:var(--lbl2);margin-bottom:6px">Par รายหลุม (H1–H9)</div>
+    <div style="display:grid;grid-template-columns:repeat(9,1fr);gap:4px" id="al-par-grid"></div>
+
+    <div id="al-status" style="display:none;padding:10px 12px;border-radius:10px;font-size:13px;font-weight:600;margin-top:12px;color:#fff"></div>
+
+    <button class="cta" onclick="confirmAddLoop()" style="margin-top:12px">✅ เพิ่มคอสนี้</button>
+    <button class="nav-b" onclick="hideAddLoopModal()" style="width:100%;margin-top:8px">ยกเลิก</button>
   </div>
 </div>
 
