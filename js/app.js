@@ -16,7 +16,10 @@ import { initTheme, toggleTheme, applyFontScale, initFontScale,
 import { initSwipe, goTab, goGuide, goResults, goMoney, switchResultsTab,
          buildParGrid, renderPlayerRows, buildTurboGrid,
          buildProgressBar, updateProgressBar, holeNav, toggleTH,
-         changeCoursePreset, applyParsFromPreset } from './ui/tabs.js';
+         changeCoursePreset, applyParsFromPreset, loadCoursesDropdown,
+         showAddCourseModal, hideAddCourseModal, toggleCourseTypeUI, confirmAddCourse,
+         showAddLoopModal, hideAddLoopModal, confirmAddLoop,
+         syncCourseParToFirebase, getSelectedCourseId } from './ui/tabs.js';
 import { showHole, updateTotals, drSet, _refreshOlyInline,
          getTeamBadgeHTML, getTeamBadgeProps,
          setHoleMatrixPill, setMatrixPill, lbToggleMatrix,
@@ -75,8 +78,10 @@ document.addEventListener('DOMContentLoaded', () => {
   initFontScale();
   setTimeout(() => document.getElementById('splash')?.classList.add('hide'), 1200);
   setToday();
-  const preset = document.getElementById('course-preset');
-  if(preset){ preset.value = 'mthb13'; changeCoursePreset(); }
+  // V12.1 — โหลดสนามจาก Firebase (แทน hardcode)
+  loadCoursesDropdown();
+  // build Par input grids สำหรับ modal เพิ่มสนาม
+  _buildModalParGrids();
   buildParGrid();
   renderPlayerRows();
   buildTurboGrid();
@@ -132,8 +137,11 @@ document.addEventListener('DOMContentLoaded', () => {
     showAddPlayerModal, hideAddPlayerModal, confirmAddPlayer,
     updateAddPlayerBtn, saveSession, loadSession, clearSession, clearGameData, initRestoreBtn, autoSave,
     shareToLine,
-    // course
-    changeCoursePreset, applyParsFromPreset,
+    // V12.1 course
+    changeCoursePreset, applyParsFromPreset, loadCoursesDropdown,
+    showAddCourseModal, hideAddCourseModal, toggleCourseTypeUI, confirmAddCourse,
+    showAddLoopModal, hideAddLoopModal, confirmAddLoop,
+    shareCourseParToFirebase,
     // tabs/nav
     goTab, goGuide, goResults, goMoney, switchResultsTab, showMoneyDetail,
     buildParGrid, renderPlayerRows, buildTurboGrid,
@@ -230,11 +238,15 @@ export function toggleTeamScorecard(h, p){
     else { while(skipData[h].length<players.length) skipData[h].push(new Set()); }
     if(!skipData[h][p]) skipData[h][p]=new Set();
     skipData[h][p].add('team');
-  } else if(cur==='B'){
-    // B → Solo
+  } else if(cur==='C'){
+    // C → Solo
     teamSoloPlayers.add(p);
+  } else if(cur==='B'){
+    // B → C
+    G.team.domoTeams[h][p] = 'C';
+    for(let i=h+1;i<18;i++) G.team.domoTeams[i][p]='C';
   } else {
-    // A → B — propagate ไปทุกหลุมถัดไป
+    // A → B
     G.team.domoTeams[h][p] = 'B';
     for(let i=h+1;i<18;i++) G.team.domoTeams[i][p]='B';
   }
@@ -355,7 +367,8 @@ export function startGame(){
   });
   G.team.chuanVal = Math.max(1, +(document.getElementById('gv-team-chuan')?.value) || 4);
   G.team.mode = 'h2h'; G.team.swapType = 'domo';
-  for(let i=0; i<n; i++){ if(!G.team.baseTeams[i]) G.team.baseTeams[i] = i%2===0?'A':'B'; }
+  // V12.1: default ทุกคนเป็น A — แบ่งทีมเอง
+  for(let i=0; i<n; i++){ if(!G.team.baseTeams[i]) G.team.baseTeams[i] = 'A'; }
   G.team.domoTeams = Array(18).fill(null).map(() => [...G.team.baseTeams]);
   G.doubleRe.mults = Array(18).fill(1);
   G.doubleRe.on = G.team.on; // เบิ้ล-รีเปิดพร้อมทีมเสมอ
@@ -411,8 +424,8 @@ export function confirmAddPlayer(){
   players.push({name, hcp});
   scores.push(Array(18).fill(null));
   srikrungData.forEach(hd => hd.push({fw:null,gir:null,putt:null}));
-  G.team.baseTeams.push(p%2===0?'A':'B');
-  G.team.domoTeams.forEach(hd => hd.push(p%2===0?'A':'B'));
+  G.team.baseTeams.push('A');
+  G.team.domoTeams.forEach(hd => hd.push('A'));
   addHcapPairsForPlayer(p);
   // เพิ่ม skipData slot สำหรับคนใหม่ทุกหลุม
   for(let h=0; h<18; h++){
@@ -581,6 +594,33 @@ export function clearGameData(){
 export function autoSave(){ saveSession(); }
 
 // ============================================================
+// V12.1 — SHARE COURSE PAR
+// ============================================================
+export async function shareCourseParToFirebase(){
+  const btn = document.getElementById('par-share-btn');
+  const warn = document.getElementById('par-warning');
+  if(btn){ btn.textContent='⟳ กำลังบันทึก...'; btn.disabled=true; }
+  await syncCourseParToFirebase();
+  if(btn){ btn.textContent='✅ บันทึกแล้ว!'; setTimeout(()=>{ btn.textContent='💾 บันทึกและแชร์ Par ให้ทุกคน'; btn.disabled=false; btn.style.display='none'; },2000); }
+  if(warn) warn.style.display='none';
+}
+
+// build Par input grids ใน modal เพิ่มสนาม
+function _buildModalParGrids(){
+  const front = document.getElementById('ac-front-grid');
+  const back  = document.getElementById('ac-back-grid');
+  const nine  = document.getElementById('ac-9hole-grid');
+  const alPar = document.getElementById('al-par-grid');
+  const inp   = ()=>`<input type="number" min="3" max="6" value="4" class="ac-par-input"
+    style="width:100%;text-align:center;padding:5px 2px;font-size:14px;border-radius:6px;
+    border:1px solid var(--bg4);background:var(--bg3);color:var(--lbl);box-sizing:border-box">`;
+  if(front) front.innerHTML = Array(9).fill(inp()).join('');
+  if(back)  back.innerHTML  = Array(9).fill(inp()).join('');
+  if(nine)  nine.innerHTML  = Array(9).fill(inp()).join('');
+  if(alPar) alPar.innerHTML = Array(9).fill(inp()).join('');
+}
+
+// ============================================================
 // SHARE
 // ============================================================
 export async function shareToLine(tid){
@@ -669,7 +709,10 @@ Object.assign(window, {
   showAddPlayerModal, hideAddPlayerModal, confirmAddPlayer,
   updateAddPlayerBtn, saveSession, loadSession, clearSession, clearGameData, initRestoreBtn, autoSave,
   shareToLine,
-  changeCoursePreset, applyParsFromPreset,
+  changeCoursePreset, applyParsFromPreset, loadCoursesDropdown,
+  showAddCourseModal, hideAddCourseModal, toggleCourseTypeUI, confirmAddCourse,
+  showAddLoopModal, hideAddLoopModal, confirmAddLoop,
+  shareCourseParToFirebase,
   goTab, goGuide, goResults, goMoney, switchResultsTab, showMoneyDetail,
   buildParGrid, renderPlayerRows, buildTurboGrid,
   buildProgressBar, updateProgressBar, holeNav, toggleTH,
