@@ -1,9 +1,11 @@
 // ============================================================
 // ui/tabs.js — navigation, setup, course, players, turbo, progress
 // ============================================================
-import { G, players, scores, pars, courseDB,
+import { G, players, scores, pars,
          isGameStarted, getCurrentHole, setCurrentHole,
          LS_KEY, autoSave } from '../config.js';
+import { fetchCourses, updateCoursePars, hasPars,
+         getSelectedCoursePars, addCourse, addCourseLoop } from '../firebase/courses.js';
 import { buildHcapUI } from '../modules/handicap.js';
 import { updateBiteMultUI } from '../modules/games.js';
 import { buildResults, buildMoney, showHole, updateTotals } from './render.js';
@@ -97,42 +99,304 @@ export function switchResultsTab(tab){
 }
 
 // ============================================================
-// COURSE PRESET
+// COURSE PRESET — V12.1 Firebase Dynamic
 // ============================================================
-export function changeCoursePreset(){
+
+// state ของสนามที่เลือก
+let _allCourses = {};
+let _selectedCourseId = 'custom';
+
+// โหลด dropdown จาก Firebase
+export async function loadCoursesDropdown(){
   const sel = document.getElementById('course-preset');
   if(!sel) return;
-  const v  = sel.value;
-  const nm = sel.options[sel.selectedIndex].text;
+
+  // แสดง loading
+  sel.innerHTML = '<option value="">⟳ กำลังโหลดสนาม...</option>';
+
+  try{
+    _allCourses = await fetchCourses();
+    const entries = Object.entries(_allCourses).sort((a,b)=>
+      a[1].name?.localeCompare(b[1].name,'th')
+    );
+
+    let opts = '<option value="custom">-- พิมพ์ชื่อสนามเอง --</option>';
+
+    // จัดกลุ่มตาม region
+    const regions = {};
+    entries.forEach(([id,c])=>{
+      const r = c.region || 'อื่นๆ';
+      if(!regions[r]) regions[r] = [];
+      regions[r].push([id,c]);
+    });
+
+    const regionOrder = [
+      'กรุงเทพฯ และปริมณฑล','ภาคกลาง','ภาคตะวันออก',
+      'ภาคตะวันตก','ภาคเหนือ','ภาคตะวันออกเฉียงเหนือ','ภาคใต้','อื่นๆ'
+    ];
+    regionOrder.forEach(r=>{
+      if(!regions[r]) return;
+      opts += `<optgroup label="${r}">`;
+      regions[r].forEach(([id,c])=>{
+        opts += `<option value="${id}">${c.name}</option>`;
+      });
+      opts += `</optgroup>`;
+    });
+
+    // เพิ่มสนาม
+    opts += `<option value="__add__">➕ เพิ่มสนามใหม่...</option>`;
+    sel.innerHTML = opts;
+
+  }catch(e){
+    // fallback ถ้า Firebase ไม่ได้
+    sel.innerHTML = `
+      <option value="custom">-- พิมพ์ชื่อสนามเอง --</option>
+      <option value="__add__">➕ เพิ่มสนามใหม่...</option>
+    `;
+  }
+
+  changeCoursePreset();
+}
+
+export function changeCoursePreset(){
+  const sel     = document.getElementById('course-preset');
+  if(!sel) return;
+  const v       = sel.value;
+
+  // กด เพิ่มสนามใหม่
+  if(v === '__add__'){
+    sel.value = _selectedCourseId || 'custom';
+    showAddCourseModal();
+    return;
+  }
+
+  _selectedCourseId = v;
   const sub     = document.getElementById('course-sub-wrap');
   const nameRow = document.getElementById('course-name-row');
   const nameEl  = document.getElementById('course-name');
+
   if(v === 'custom'){
-    if(nameEl) nameEl.value = '';
+    if(nameEl)  nameEl.value = '';
     if(nameRow) nameRow.style.display = 'flex';
     if(sub)     sub.style.display = 'none';
-  } else if(v === 'panya' || v === 'narai'){
-    if(nameEl) nameEl.value = nm;
-    if(nameRow) nameRow.style.display = 'none';
-    if(sub)     sub.style.display = 'flex';
+    return;
+  }
+
+  const course = _allCourses[v];
+  if(!course) return;
+
+  if(nameEl)  nameEl.value = course.name || '';
+  if(nameRow) nameRow.style.display = 'none';
+
+  if(course.type === '9hole-loop' && course.loops){
+    // build loop selects
+    const loopKeys = Object.keys(course.loops).sort();
+    const f9 = document.getElementById('course-f9');
+    const b9 = document.getElementById('course-b9');
+    if(f9 && b9){
+      const opts = loopKeys.map(k=>`<option value="${k}">คอส ${k}</option>`).join('');
+      f9.innerHTML = opts;
+      b9.innerHTML = opts;
+      if(loopKeys[1]) b9.value = loopKeys[1];
+    }
+    // เพิ่มปุ่ม + คอสใหม่
+    let addBtn = document.getElementById('add-loop-btn');
+    if(!addBtn){
+      addBtn = document.createElement('button');
+      addBtn.id = 'add-loop-btn';
+      addBtn.className = 'nav-b';
+      addBtn.style.cssText = 'font-size:12px;padding:6px;color:var(--blue)';
+      addBtn.onclick = ()=> showAddLoopModal(v);
+      sub.appendChild(addBtn);
+    }
+    addBtn.textContent = `➕ เพิ่มคอสใหม่ให้ ${course.name}`;
+    if(sub) sub.style.display = 'flex';
     applyParsFromPreset();
   } else {
-    if(nameEl) nameEl.value = nm;
-    if(nameRow) nameRow.style.display = 'none';
-    if(sub)     sub.style.display = 'none';
-    pars.splice(0, 18, ...courseDB[v]);
-    buildParGrid();
+    if(sub) sub.style.display = 'none';
+    if(course.pars?.length === 18){
+      pars.splice(0,18,...course.pars);
+      buildParGrid();
+    } else {
+      // Par ยังว่าง — ใส่ default 4
+      pars.splice(0,18,...Array(18).fill(4));
+      buildParGrid();
+      _showParWarning(course.name);
+    }
   }
 }
 
 export function applyParsFromPreset(){
-  const v = document.getElementById('course-preset')?.value;
-  if(v === 'panya' || v === 'narai'){
-    const f9 = document.getElementById('course-f9')?.value || 'A';
-    const b9 = document.getElementById('course-b9')?.value || 'B';
-    const newPars = [...courseDB[v][f9], ...courseDB[v][b9]];
-    pars.splice(0, 18, ...newPars);
+  const v = _selectedCourseId;
+  if(v === 'custom' || !v) return;
+  const course = _allCourses[v];
+  if(!course || course.type !== '9hole-loop') return;
+
+  const f9Key = document.getElementById('course-f9')?.value || 'A';
+  const b9Key = document.getElementById('course-b9')?.value || 'B';
+  const newPars = getSelectedCoursePars(course, f9Key, b9Key);
+  if(newPars){
+    pars.splice(0,18,...newPars);
     buildParGrid();
+  }
+}
+
+// แสดง Banner เตือน Par ว่าง + ปุ่มแชร์
+function _showParWarning(courseName){
+  const warn = document.getElementById('par-warning');
+  const btn  = document.getElementById('par-share-btn');
+  if(warn){
+    warn.style.display = 'block';
+    const nameEl = document.getElementById('par-warn-name');
+    if(nameEl) nameEl.textContent = courseName;
+  }
+  if(btn) btn.style.display = 'block';
+}
+
+// ซ่อน warning และแสดงปุ่มแชร์เมื่อมีการแก้ Par
+export function onParChanged(){
+  const warn = document.getElementById('par-warning');
+  const btn  = document.getElementById('par-share-btn');
+  if(warn) warn.style.display = 'none';
+  if(btn && _selectedCourseId && _selectedCourseId !== 'custom'){
+    btn.style.display = 'block';
+  }
+}
+
+// sync Par กลับ Firebase หลังแก้บนหน้าสกอ
+export async function syncCourseParToFirebase(){
+  if(!_selectedCourseId || _selectedCourseId === 'custom') return;
+  const course = _allCourses[_selectedCourseId];
+  if(!course || course.type === '9hole-loop') return; // loop ไม่ sync แบบนี้
+  await updateCoursePars(_selectedCourseId, [...pars]);
+}
+
+export function getSelectedCourseId(){ return _selectedCourseId; }
+
+// ============================================================
+// MODAL — เพิ่มสนามใหม่
+// ============================================================
+export function showAddCourseModal(){
+  const modal = document.getElementById('add-course-modal');
+  const sheet = document.getElementById('add-course-sheet');
+  if(!modal) return;
+  // reset
+  document.getElementById('ac-name').value = '';
+  document.getElementById('ac-type').value = '18hole';
+  document.getElementById('ac-status').style.display = 'none';
+  toggleCourseTypeUI('18hole');
+  modal.style.display = 'flex';
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    sheet.style.transform = 'translateY(0)';
+  }));
+}
+
+export function hideAddCourseModal(){
+  const sheet = document.getElementById('add-course-sheet');
+  sheet.style.transform = 'translateY(100%)';
+  setTimeout(()=>{ document.getElementById('add-course-modal').style.display='none'; },300);
+}
+
+export function toggleCourseTypeUI(type){
+  document.getElementById('ac-18hole-wrap').style.display = type==='18hole'?'block':'none';
+  document.getElementById('ac-9hole-wrap').style.display  = type==='9hole-loop'?'block':'none';
+}
+
+export async function confirmAddCourse(){
+  const name   = document.getElementById('ac-name')?.value.trim();
+  const type   = document.getElementById('ac-type')?.value;
+  const status = document.getElementById('ac-status');
+
+  const showStatus = (msg,color)=>{
+    status.style.display='block';
+    status.style.background=color;
+    status.textContent=msg;
+  };
+
+  if(!name){ document.getElementById('ac-name').focus(); return; }
+
+  let data = { name, type, region:'ไม่ระบุ', province:'ไม่ระบุ' };
+
+  if(type === '18hole'){
+    const inputs = document.querySelectorAll('#ac-18hole-wrap .ac-par-input');
+    data.pars = [...inputs].map(i=>Math.max(3,Math.min(6,+i.value||4)));
+    data.par  = data.pars.reduce((s,v)=>s+v,0);
+  } else {
+    const loopName = document.getElementById('ac-loop-name')?.value.trim()||'A';
+    const inputs   = document.querySelectorAll('#ac-9hole-wrap .ac-par-input');
+    const loopPars = [...inputs].map(i=>Math.max(3,Math.min(6,+i.value||4)));
+    data.loops = { [loopName]:{ name:`คอส ${loopName}`, pars:loopPars } };
+    data.par   = loopPars.reduce((s,v)=>s+v,0);
+  }
+
+  showStatus('⟳ กำลังบันทึก...','rgba(10,132,255,0.9)');
+  const res = await addCourse(data);
+
+  if(res.ok){
+    showStatus(`✅ เพิ่มสนาม "${name}" สำเร็จ!`,'rgba(48,209,88,0.9)');
+    setTimeout(async()=>{
+      hideAddCourseModal();
+      await loadCoursesDropdown();
+      // เลือกสนามที่เพิ่งเพิ่ม
+      const sel = document.getElementById('course-preset');
+      if(sel && res.id){ sel.value = res.id; changeCoursePreset(); }
+    },1200);
+  } else {
+    showStatus(`❌ ${res.msg}`,'rgba(255,69,58,0.9)');
+  }
+}
+
+// ── Modal เพิ่มคอสใหม่ ──
+export function showAddLoopModal(courseId){
+  const modal = document.getElementById('add-loop-modal');
+  const sheet = document.getElementById('add-loop-sheet');
+  if(!modal) return;
+  const course = _allCourses[courseId];
+  document.getElementById('al-course-name').textContent = course?.name||'';
+  document.getElementById('al-loop-name').value = '';
+  document.getElementById('al-status').style.display='none';
+  modal.dataset.courseId = courseId;
+  modal.style.display='flex';
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    sheet.style.transform='translateY(0)';
+  }));
+}
+
+export function hideAddLoopModal(){
+  const sheet = document.getElementById('add-loop-sheet');
+  sheet.style.transform='translateY(100%)';
+  setTimeout(()=>{ document.getElementById('add-loop-modal').style.display='none'; },300);
+}
+
+export async function confirmAddLoop(){
+  const modal    = document.getElementById('add-loop-modal');
+  const courseId = modal.dataset.courseId;
+  const loopKey  = document.getElementById('al-loop-name')?.value.trim().toUpperCase();
+  const inputs   = document.querySelectorAll('#al-par-grid .ac-par-input');
+  const loopPars = [...inputs].map(i=>Math.max(3,Math.min(6,+i.value||4)));
+  const status   = document.getElementById('al-status');
+
+  const showStatus=(msg,color)=>{
+    status.style.display='block';
+    status.style.background=color;
+    status.textContent=msg;
+  };
+
+  if(!loopKey){ document.getElementById('al-loop-name').focus(); return; }
+
+  showStatus('⟳ กำลังบันทึก...','rgba(10,132,255,0.9)');
+  const res = await addCourseLoop(courseId, loopKey, {
+    name:`คอส ${loopKey}`, pars:loopPars
+  });
+
+  if(res.ok){
+    showStatus(`✅ เพิ่มคอส ${loopKey} สำเร็จ!`,'rgba(48,209,88,0.9)');
+    setTimeout(async()=>{
+      hideAddLoopModal();
+      await loadCoursesDropdown();
+    },1200);
+  } else {
+    showStatus(`❌ ${res.msg}`,'rgba(255,69,58,0.9)');
   }
 }
 
@@ -267,7 +531,9 @@ export function holeNav(dir){
   if(next < 0) return;
   if(next > 17){ syncAll(); goResults(); return; }
   syncAll();
-  syncFullBackup(); // backup ทุกหลุม
+  syncFullBackup();
+  // V12.1 — sync Par สนามขึ้น Firebase (เบื้องหลัง)
+  syncCourseParToFirebase();
   setCurrentHole(next); showHole(next);
 }
 

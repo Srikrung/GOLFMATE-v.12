@@ -11,14 +11,8 @@ export const LS_KEY = 'golfmate_v11';
 export const THEME_KEY = 'golfmate_theme';
 export const ICONS = {bite:'🐶',olympic:'🏅',team:'🤝',farNear:'🎯',hcap:'🎯'};
 
-// ── COURSE DB ──
-export const courseDB = {
-  muangek:[4,4,5,4,5,3,4,3,4,4,5,3,4,4,5,4,3,4],
-  vista:  [4,3,4,5,4,3,5,3,4,4,3,5,3,5,3,4,4,4],
-  mthb13: [4,3,5,3,5,4,3,4,4,3,4,4,5,3,4,4,4,5],
-  panya:{A:[4,4,3,5,4,4,5,3,4],B:[5,4,4,3,4,5,4,3,4],C:[4,3,5,4,4,3,4,5,4]},
-  narai: {A:[4,4,3,4,5,5,4,4,5],B:[4,5,4,4,3,4,3,5,4],C:[4,4,5,4,3,4,4,3,5]}
-};
+// ── COURSE DB ── ย้ายไป Firebase แล้ว (V12.1)
+// ดู firebase/courses.js
 
 // ── MUTABLE STATE ──
 // ใช้ array/object แบบ mutable เพื่อให้ module อื่น import reference เดียวกัน

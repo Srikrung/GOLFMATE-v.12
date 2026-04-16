@@ -238,15 +238,11 @@ export function toggleTeamScorecard(h, p){
     else { while(skipData[h].length<players.length) skipData[h].push(new Set()); }
     if(!skipData[h][p]) skipData[h][p]=new Set();
     skipData[h][p].add('team');
-  } else if(cur==='C'){
-    // C → Solo
-    teamSoloPlayers.add(p);
   } else if(cur==='B'){
-    // B → C
-    G.team.domoTeams[h][p] = 'C';
-    for(let i=h+1;i<18;i++) G.team.domoTeams[i][p]='C';
+    // B → Solo
+    teamSoloPlayers.add(p);
   } else {
-    // A → B
+    // A → B — propagate ไปทุกหลุมถัดไป
     G.team.domoTeams[h][p] = 'B';
     for(let i=h+1;i<18;i++) G.team.domoTeams[i][p]='B';
   }
@@ -367,8 +363,7 @@ export function startGame(){
   });
   G.team.chuanVal = Math.max(1, +(document.getElementById('gv-team-chuan')?.value) || 4);
   G.team.mode = 'h2h'; G.team.swapType = 'domo';
-  // V12.1: default ทุกคนเป็น A — แบ่งทีมเอง
-  for(let i=0; i<n; i++){ if(!G.team.baseTeams[i]) G.team.baseTeams[i] = 'A'; }
+  for(let i=0; i<n; i++){ if(!G.team.baseTeams[i]) G.team.baseTeams[i] = i%2===0?'A':'B'; }
   G.team.domoTeams = Array(18).fill(null).map(() => [...G.team.baseTeams]);
   G.doubleRe.mults = Array(18).fill(1);
   G.doubleRe.on = G.team.on; // เบิ้ล-รีเปิดพร้อมทีมเสมอ
@@ -424,8 +419,8 @@ export function confirmAddPlayer(){
   players.push({name, hcp});
   scores.push(Array(18).fill(null));
   srikrungData.forEach(hd => hd.push({fw:null,gir:null,putt:null}));
-  G.team.baseTeams.push('A');
-  G.team.domoTeams.forEach(hd => hd.push('A'));
+  G.team.baseTeams.push(p%2===0?'A':'B');
+  G.team.domoTeams.forEach(hd => hd.push(p%2===0?'A':'B'));
   addHcapPairsForPlayer(p);
   // เพิ่ม skipData slot สำหรับคนใหม่ทุกหลุม
   for(let h=0; h<18; h++){
