@@ -58,3 +58,21 @@ select option {
   background: var(--bg2);
   color: var(--lbl);
 }
+
+/* ── Turbo Grid V12.1 ── */
+.t-grid{display:grid;grid-template-columns:repeat(9,1fr);gap:5px;margin-bottom:4px}
+.t-cell{display:flex;flex-direction:column;align-items:center;gap:3px}
+.t-cell-num{font-size:10px;font-weight:600;color:var(--lbl3)}
+.t-cb{
+  width:100%;height:32px;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:14px;cursor:pointer;
+  background:var(--bg3);border:1.5px solid var(--bg4);
+  color:var(--lbl3);transition:.15s;
+  user-select:none;
+}
+.t-cb.on{
+  background:rgba(255,159,10,0.18);
+  border-color:rgba(255,159,10,0.6);
+  color:#ff9f0a;
+}

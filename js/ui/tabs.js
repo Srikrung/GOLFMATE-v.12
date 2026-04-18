@@ -278,6 +278,57 @@ export function getSelectedCourseId(){ return _selectedCourseId; }
 // ============================================================
 // MODAL — เพิ่มสนามใหม่
 // ============================================================
+// ── Province → Region Map ──
+const PROVINCE_REGION = {
+  'กรุงเทพมหานคร':'กรุงเทพฯ และปริมณฑล','นนทบุรี':'กรุงเทพฯ และปริมณฑล',
+  'ปทุมธานี':'กรุงเทพฯ และปริมณฑล','สมุทรปราการ':'กรุงเทพฯ และปริมณฑล',
+  'สมุทรสาคร':'กรุงเทพฯ และปริมณฑล','นครปฐม':'กรุงเทพฯ และปริมณฑล',
+  'พระนครศรีอยุธยา':'ภาคกลาง','อ่างทอง':'ภาคกลาง','ลพบุรี':'ภาคกลาง',
+  'สิงห์บุรี':'ภาคกลาง','ชัยนาท':'ภาคกลาง','สระบุรี':'ภาคกลาง',
+  'นครนายก':'ภาคกลาง','สุพรรณบุรี':'ภาคกลาง','กาญจนบุรี':'ภาคกลาง',
+  'ราชบุรี':'ภาคกลาง','เพชรบุรี':'ภาคกลาง','ประจวบคีรีขันธ์':'ภาคกลาง',
+  'สมุทรสงคราม':'ภาคกลาง',
+  'ชลบุรี':'ภาคตะวันออก','ระยอง':'ภาคตะวันออก','จันทบุรี':'ภาคตะวันออก',
+  'ตราด':'ภาคตะวันออก','ฉะเชิงเทรา':'ภาคตะวันออก','ปราจีนบุรี':'ภาคตะวันออก',
+  'สระแก้ว':'ภาคตะวันออก',
+  'เชียงใหม่':'ภาคเหนือ','เชียงราย':'ภาคเหนือ','ลำปาง':'ภาคเหนือ',
+  'ลำพูน':'ภาคเหนือ','แม่ฮ่องสอน':'ภาคเหนือ','พะเยา':'ภาคเหนือ',
+  'แพร่':'ภาคเหนือ','น่าน':'ภาคเหนือ','อุตรดิตถ์':'ภาคเหนือ',
+  'ตาก':'ภาคเหนือ','สุโขทัย':'ภาคเหนือ','พิษณุโลก':'ภาคเหนือ',
+  'พิจิตร':'ภาคเหนือ','กำแพงเพชร':'ภาคเหนือ','นครสวรรค์':'ภาคเหนือ',
+  'อุทัยธานี':'ภาคเหนือ','เพชรบูรณ์':'ภาคเหนือ',
+  'นครราชสีมา':'ภาคตะวันออกเฉียงเหนือ','บุรีรัมย์':'ภาคตะวันออกเฉียงเหนือ',
+  'สุรินทร์':'ภาคตะวันออกเฉียงเหนือ','ศรีสะเกษ':'ภาคตะวันออกเฉียงเหนือ',
+  'อุบลราชธานี':'ภาคตะวันออกเฉียงเหนือ','ยโสธร':'ภาคตะวันออกเฉียงเหนือ',
+  'ชัยภูมิ':'ภาคตะวันออกเฉียงเหนือ','อำนาจเจริญ':'ภาคตะวันออกเฉียงเหนือ',
+  'บึงกาฬ':'ภาคตะวันออกเฉียงเหนือ','หนองบัวลำภู':'ภาคตะวันออกเฉียงเหนือ',
+  'ขอนแก่น':'ภาคตะวันออกเฉียงเหนือ','อุดรธานี':'ภาคตะวันออกเฉียงเหนือ',
+  'เลย':'ภาคตะวันออกเฉียงเหนือ','หนองคาย':'ภาคตะวันออกเฉียงเหนือ',
+  'มหาสารคาม':'ภาคตะวันออกเฉียงเหนือ','ร้อยเอ็ด':'ภาคตะวันออกเฉียงเหนือ',
+  'กาฬสินธุ์':'ภาคตะวันออกเฉียงเหนือ','สกลนคร':'ภาคตะวันออกเฉียงเหนือ',
+  'นครพนม':'ภาคตะวันออกเฉียงเหนือ','มุกดาหาร':'ภาคตะวันออกเฉียงเหนือ',
+  'ชุมพร':'ภาคใต้','ระนอง':'ภาคใต้','สุราษฎร์ธานี':'ภาคใต้',
+  'นครศรีธรรมราช':'ภาคใต้','กระบี่':'ภาคใต้','พังงา':'ภาคใต้',
+  'ภูเก็ต':'ภาคใต้','ตรัง':'ภาคใต้','พัทลุง':'ภาคใต้',
+  'สตูล':'ภาคใต้','สงขลา':'ภาคใต้','ปัตตานี':'ภาคใต้',
+  'ยะลา':'ภาคใต้','นราธิวาส':'ภาคใต้',
+};
+export function getRegionFromProvince(province){
+  return PROVINCE_REGION[province] || 'ไม่ระบุ';
+}
+export function onProvinceChange(province){
+  const region = getRegionFromProvince(province);
+  const rd  = document.getElementById('ac-region-display');
+  const rt  = document.getElementById('ac-region-text');
+  if(!rd || !rt) return;
+  if(province && region !== 'ไม่ระบุ'){
+    rd.style.display = 'block';
+    rt.textContent   = region;
+  } else {
+    rd.style.display = 'none';
+  }
+}
+
 export function showAddCourseModal(){
   const modal = document.getElementById('add-course-modal');
   const sheet = document.getElementById('add-course-sheet');
@@ -285,6 +336,10 @@ export function showAddCourseModal(){
   // reset
   document.getElementById('ac-name').value = '';
   document.getElementById('ac-type').value = '18hole';
+  const prov = document.getElementById('ac-province');
+  if(prov) prov.value = '';
+  const rd = document.getElementById('ac-region-display');
+  if(rd) rd.style.display='none';
   document.getElementById('ac-status').style.display = 'none';
   toggleCourseTypeUI('18hole');
   modal.style.display = 'flex';
@@ -317,7 +372,9 @@ export async function confirmAddCourse(){
 
   if(!name){ document.getElementById('ac-name').focus(); return; }
 
-  let data = { name, type, region:'ไม่ระบุ', province:'ไม่ระบุ' };
+  const province = document.getElementById('ac-province')?.value || 'ไม่ระบุ';
+  const region   = getRegionFromProvince(province);
+  let data = { name, type, region, province };
 
   if(type === '18hole'){
     const inputs = document.querySelectorAll('#ac-18hole-wrap .ac-par-input');
@@ -501,6 +558,8 @@ export function updateProgressBar(){
     if(h === cur)       d.classList.add('cur');
     else if(has)        d.classList.add('scored');
     else if(h < cur)    d.classList.add('done');
+    // V12.1: แสดง Turbo indicator บน progress dot
+    if(G.turbo.on && G.turbo.holes.has(h)) d.classList.add('turbo');
   }
   // อัปเดต nav badge (Option B)
   const holeNumEl = document.getElementById('nav-hole-num');
